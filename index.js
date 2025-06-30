@@ -5,7 +5,7 @@ const path = require('path');
 const cron = require('node-cron');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const IMAGES_DIR = path.join(__dirname, 'imagenes');
 let imagenLocal = null;
 
@@ -20,7 +20,11 @@ URL_IFRAME.searchParams.set('tipo', 'Tope de Nubes');
 async function capturarImagen() {
   let browser;
   try {
-    browser = await puppeteer.launch({ args: ['--no-sandbox'] });
+    browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      executablePath: '/usr/bin/chromium'
+    });
+
     const page = await browser.newPage();
     await page.goto(URL_IFRAME.toString(), { waitUntil: 'networkidle2' });
 
@@ -32,18 +36,19 @@ async function capturarImagen() {
     const buffer = await view.buffer();
 
     if (!fs.existsSync(IMAGES_DIR)) fs.mkdirSync(IMAGES_DIR);
+
     const fileName = `noroeste-topenubes-${Date.now()}.jpg`;
     const filePath = path.join(IMAGES_DIR, fileName);
     fs.writeFileSync(filePath, buffer);
     imagenLocal = path.join('imagenes', fileName);
+
     console.log(`✅ Imagen guardada: ${fileName}`);
-  } catch (err) {
-    console.error('❌ Error al capturar imagen:', err.message);
+  } catch (error) {
+    console.error('❌ Error al capturar imagen:', error.message);
   } finally {
     if (browser) await browser.close();
   }
 }
-
 
 cron.schedule('* * * * *', capturarImagen);
 capturarImagen();
@@ -69,5 +74,5 @@ app.get('/imagen-base64', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Servidor escuchando en http://localhost:${PORT}`);
+  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });
